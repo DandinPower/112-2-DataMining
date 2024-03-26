@@ -2,6 +2,7 @@ import numpy as np
 import math
 from tqdm import tqdm
 from .scaler import Scaler
+import os
 
 class LinearRegression:
     def __init__(self, feature_num: int, random_seed: int, is_bias: bool):
@@ -13,6 +14,15 @@ class LinearRegression:
         if is_bias:
             self.bias_ = np.random.uniform(-limit, limit, size=(1))
     
+    def save(self, path: str) -> None:
+        np.savez(path, weights=self.weights_, bias=self.bias_)
+
+    def load(self, path: str) -> None:
+        data = np.load(path)
+        self.weights_ = data['weights']
+        if 'bias' in data:
+            self.bias_ = data['bias']
+
     def predict(self, X: np.ndarray) -> np.ndarray:
         assert X.shape[1] == self.weights_.shape[0]
         output = np.dot(X, self.weights_)
@@ -20,7 +30,7 @@ class LinearRegression:
             output += self.bias_
         return output
 
-    def fit(self, train_X: np.ndarray, train_Y: np.ndarray, valid_X: np.ndarray, valid_Y: np.ndarray, scaler: Scaler, target_column_index: int, epoch: int, learning_rate: float, batch_size: int, regularization_rate: float) -> tuple[list[float], list[float]]:
+    def fit(self, train_X: np.ndarray, train_Y: np.ndarray, valid_X: np.ndarray, valid_Y: np.ndarray, scaler: Scaler, target_column_index: int, epoch: int, learning_rate: float, batch_size: int, regularization_rate: float, train_name: str, model_folder: str) -> tuple[list[float], list[float]]:
         assert train_X.shape[0] == train_Y.shape[0]
         assert valid_X.shape[0] == valid_Y.shape[0]
         assert train_X.shape[1] == self.weights_.shape[0]
@@ -30,6 +40,8 @@ class LinearRegression:
         
         train_loss = []
         valid_loss = []
+
+        max_valid_loss = float('inf')
         
         for i in tqdm(range(epoch)):
             rmse_train_loss = 0.0
@@ -59,6 +71,13 @@ class LinearRegression:
             rmse_valid_loss = np.average(rmse_valid_loss, axis=0)
             rmse_valid_loss = math.sqrt(rmse_valid_loss)
 
+            if rmse_valid_loss < max_valid_loss:
+                print(f'epoch: {i}, valid_loss: {rmse_valid_loss} saved')
+                if not os.path.exists(model_folder):
+                    os.makedirs(model_folder)
+                self.save(f'{model_folder}/{train_name}.npz')
+                max_valid_loss = rmse_valid_loss
+                
             train_Y_pred = self.predict(train_X)
             rmse_train_loss = train_Y - train_Y_pred 
             rmse_train_loss = scaler.de_transform(rmse_train_loss, target_column_index)

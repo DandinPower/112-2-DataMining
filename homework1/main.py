@@ -32,10 +32,12 @@ def train(args: ArgumentParser) -> None:
     feature_num = train_X.shape[1]
 
     model = LinearRegression(feature_num, random_seed=args.random_seed, is_bias=args.is_bias)
-    train_loss, valid_loss = model.fit(train_X, train_Y, valid_X, valid_Y, scaler, args.target_column_index, args.epoch, args.learning_rate, args.batch_size, args.regularization_rate)
+    train_loss, valid_loss = model.fit(train_X, train_Y, valid_X, valid_Y, scaler, args.target_column_index, args.epoch, args.learning_rate, args.batch_size, args.regularization_rate, args.train_name, args.model_folder)
 
     show_train_valid_loss_progress(train_loss, valid_loss, args.train_result_folder, args.train_name)
 
+    # load the best model
+    model.load(f'{args.model_folder}/{args.train_name}.npz')
     test_Y_pred = model.predict(test_X)
     test_Y_de_scaled = scaler.de_transform(test_Y_pred, args.target_column_index)
 
@@ -65,6 +67,7 @@ if __name__ == '__main__':
     parser.add_argument('--analyze_folder', type=str)
     parser.add_argument('--predict_folder', type=str)
     parser.add_argument('--train_result_folder', type=str)
+    parser.add_argument('--model_folder', type=str)
     parser.add_argument('--train_name', type=str)
     args = parser.parse_args()
     main(args)
